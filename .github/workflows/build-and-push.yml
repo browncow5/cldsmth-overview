@@ -11,7 +11,7 @@ permissions:
   contents: read     # Required for actions/checkout
 
 env:
-  CLOUDSMITH_ORG: red-acme-inc
+  CLOUDSMITH_WORKSPACE: red-acme-inc
   CLOUDSMITH_REPO: cldsmth-overview
   CLOUDSMITH_SERVICE: gh-actions-3vjo # The service slug for the Cloudsmith service
   DOCKER_REGISTRY: docker.cloudsmith.io/red-acme-inc/cldsmth-overview
@@ -25,8 +25,8 @@ jobs:
       - name: Authenticate with Cloudsmith via OIDC
         uses: cloudsmith-io/cloudsmith-cli-action@v2
         with:
-          oidc-namespace: red-acme-inc
-          oidc-service-slug: cldsmth-overview
+          oidc-namespace: ${{ env.CLOUDSMITH_WORKSPACE }}
+          oidc-service-slug: ${{ env.CLOUDSMITH_SERVICE }}
           oidc-auth-only: 'true'
 
       - name: Log in to Cloudsmith Docker Registry
@@ -58,8 +58,8 @@ jobs:
       - name: Authenticate with Cloudsmith via OIDC
         uses: cloudsmith-io/cloudsmith-cli-action@v2
         with:
-          oidc-namespace: red-acme-inc
-          oidc-service-slug: cldsmth-overview
+          oidc-namespace: ${{ env.CLOUDSMITH_WORKSPACE }}
+          oidc-service-slug: ${{ env.CLOUDSMITH_SERVICE }}
           oidc-auth-only: 'true'
 
       - name: Log in to Cloudsmith Docker Registry
