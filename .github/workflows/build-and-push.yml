@@ -1,0 +1,84 @@
+name: Build & Push to Cloudsmith
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  id-token: write   # Required for requesting the OIDC JWT
+  contents: read     # Required for actions/checkout
+
+env:
+  CLOUDSMITH_ORG: red-acme-inc
+  CLOUDSMITH_REPO: cldsmth-overview
+  CLOUDSMITH_SERVICE: gh-actions-3vjo # The service slug for the Cloudsmith service
+  DOCKER_REGISTRY: docker.cloudsmith.io/red-acme-inc/cldsmth-overview
+
+jobs:
+  build-python-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate with Cloudsmith via OIDC
+        uses: cloudsmith-io/cloudsmith-cli-action@v2
+        with:
+          oidc-namespace: red-acme-inc
+          oidc-service-slug: cldsmth-overview
+          oidc-auth-only: 'true'
+
+      - name: Log in to Cloudsmith Docker Registry
+        run: |
+          echo "${CLOUDSMITH_API_KEY}" | \
+            docker login docker.cloudsmith.io \
+              -u "token" \
+              --password-stdin
+
+      - name: Build Python API image
+        run: |
+          docker build \
+            --build-arg CLOUDSMITH_API_KEY=${CLOUDSMITH_API_KEY} \
+            -t ${{ env.DOCKER_REGISTRY }}/python-api:${{ github.sha }} \
+            -t ${{ env.DOCKER_REGISTRY }}/python-api:latest \
+            ./services/python-api
+
+      - name: Push Python API image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker push ${{ env.DOCKER_REGISTRY }}/python-api:${{ github.sha }}
+          docker push ${{ env.DOCKER_REGISTRY }}/python-api:latest
+
+  build-node-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate with Cloudsmith via OIDC
+        uses: cloudsmith-io/cloudsmith-cli-action@v2
+        with:
+          oidc-namespace: red-acme-inc
+          oidc-service-slug: cldsmth-overview
+          oidc-auth-only: 'true'
+
+      - name: Log in to Cloudsmith Docker Registry
+        run: |
+          echo "${CLOUDSMITH_API_KEY}" | \
+            docker login docker.cloudsmith.io \
+              -u "token" \
+              --password-stdin
+
+      - name: Build Node Web image
+        run: |
+          docker build \
+            --build-arg CLOUDSMITH_API_KEY=${CLOUDSMITH_API_KEY} \
+            -t ${{ env.DOCKER_REGISTRY }}/node-web:${{ github.sha }} \
+            -t ${{ env.DOCKER_REGISTRY }}/node-web:latest \
+            ./services/node-web
+
+      - name: Push Node Web image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker push ${{ env.DOCKER_REGISTRY }}/node-web:${{ github.sha }}
+          docker push ${{ env.DOCKER_REGISTRY }}/node-web:latest
