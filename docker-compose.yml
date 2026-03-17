@@ -1,0 +1,20 @@
+services:
+  python-api:
+    build:
+      context: ./services/python-api
+      args:
+        CLOUDSMITH_API_KEY: ${CLOUDSMITH_API_KEY}
+    ports:
+      - "5000:5000"
+
+  node-web:
+    build:
+      context: ./services/node-web
+      args:
+        CLOUDSMITH_API_KEY: ${CLOUDSMITH_API_KEY}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - python-api
+    environment:
+      - API_URL=http://python-api:5000
