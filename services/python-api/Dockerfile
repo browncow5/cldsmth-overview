@@ -2,6 +2,8 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+ARG CLOUDSMITH_API_KEY
+
 COPY requirements.txt .
 RUN pip install --index-url https://dl.cloudsmith.io/$CLOUDSMITH_API_KEY/red-acme-inc/cldsmth-overview/python/simple/ \
     --trusted-host dl.cloudsmith.io \
