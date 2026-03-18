@@ -8,8 +8,13 @@ ARG CLOUDSMITH_WORKSPACE
 ARG CLOUDSMITH_REPOSITORY
 ARG CLOUDSMITH_SERVICE
 
-RUN npm config set registry https://npm.cloudsmith.io/$CLOUDSMITH_WORKSPACE/$CLOUDSMITH_REPOSITORY/
-RUN npm config set https://npm.cloudsmith.io/$CLOUDSMITH_WORKSPACE/$CLOUDSMITH_REPOSITORY/:_authToken=${CLOUDSMITH_API_KEY}
+#RUN npm config set registry https://npm.cloudsmith.io/$CLOUDSMITH_WORKSPACE/$CLOUDSMITH_REPOSITORY/
+#RUN npm config set https://npm.cloudsmith.io/$CLOUDSMITH_WORKSPACE/$CLOUDSMITH_REPOSITORY/:_authToken=${CLOUDSMITH_API_KEY}
+
+RUN npm config set registry https://npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/
+RUN npm config set //npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/:username token
+RUN npm config set //npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/:_password $(printf '%s' "${CLOUDSMITH_API_KEY}" | base64 | tr -d '\n')
+RUN npm config set //npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/:always-auth true
 
 COPY package.json .
 RUN npm install
