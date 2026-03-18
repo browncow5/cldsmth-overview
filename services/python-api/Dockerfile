@@ -7,7 +7,7 @@ ARG CLOUDSMITH_API_KEY
 RUN echo "API key length: $(echo -n ${CLOUDSMITH_API_KEY} | wc -c)"
 
 COPY requirements.txt .
-RUN pip install --index-url https://dl.cloudsmith.io/${CLOUDSMITH_API_KEY}/red-acme-inc/cldsmth-overview/python/simple/ \
+RUN pip install --index-url https://dl.cloudsmith.io/$CLOUDSMITH_API_KEY/red-acme-inc/cldsmth-overview/python/simple/ \
     --trusted-host dl.cloudsmith.io \
     --no-cache-dir \
     -r requirements.txt
