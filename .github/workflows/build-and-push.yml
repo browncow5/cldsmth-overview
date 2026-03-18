@@ -36,19 +36,33 @@ jobs:
               -u "token" \
               --password-stdin
 
-      - name: Build Python API image
-        run: |
-          docker build \
-            --build-arg CLOUDSMITH_API_KEY=${{ env.CLOUDSMITH_API_KEY }} \
-            -t ${{ env.DOCKER_REGISTRY }}/python-api:${{ github.sha }} \
-            -t ${{ env.DOCKER_REGISTRY }}/python-api:latest \
-            ./services/python-api
-
-      - name: Push Python API image
-        if: github.ref == 'refs/heads/main'
-        run: |
-          docker push ${{ env.DOCKER_REGISTRY }}/python-api:${{ github.sha }}
-          docker push ${{ env.DOCKER_REGISTRY }}/python-api:latest
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/arm64
+          provenance: false
+          push: true
+          tags: docker.cloudsmith.io/${{ env.CLOUDSMITH_WORKSPACE }}/${{ env.CLOUDSMITH_REPOSITORY }}/python-app:${{github.run_number}}
+          build-args: |
+            CLOUDSMITH_SERVICE=${{ env.CLOUDSMITH_SERVICE }}
+            CLOUDSMITH_WORKSPACE=${{ env.CLOUDSMITH_WORKSPACE }}
+            CLOUDSMITH_REPOSITORY=${{ env.CLOUDSMITH_REPOSITORY }}
+            CLOUDSMITH_API_KEY=${{ env.CLOUDSMITH_API_KEY }}
+            BUILDKIT_PROGRESS=plain
+            
+#      - name: Build Python API image
+#        run: |
+#          docker build \
+#            --build-arg CLOUDSMITH_API_KEY=${{ env.CLOUDSMITH_API_KEY }} \
+#            -t ${{ env.DOCKER_REGISTRY }}/python-api:${{ github.sha }} \
+#            -t ${{ env.DOCKER_REGISTRY }}/python-api:latest \
+#            ./services/python-api
+#
+#      - name: Push Python API image
+#        if: github.ref == 'refs/heads/main'
+#        run: |
+#          docker push ${{ env.DOCKER_REGISTRY }}/python-api:${{ github.sha }}
+#          docker push ${{ env.DOCKER_REGISTRY }}/python-api:latest
 
   build-node-web:
     runs-on: ubuntu-latest
