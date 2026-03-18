@@ -29,6 +29,10 @@ jobs:
           oidc-service-slug: ${{ env.CLOUDSMITH_SERVICE }}
           oidc-auth-only: 'true'
 
+      - name: Debug - check key exists
+        run: |
+          echo "Key length: ${#CLOUDSMITH_API_KEY}"
+
       - name: Log in to Cloudsmith Docker Registry
         run: |
           echo "${{ env.CLOUDSMITH_API_KEY }}" | \
