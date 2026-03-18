@@ -33,6 +33,12 @@ jobs:
         run: |
           echo "Key length: ${#CLOUDSMITH_API_KEY}"
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to Cloudsmith Docker Registry
         run: |
           echo "${{ env.CLOUDSMITH_API_KEY }}" | \
