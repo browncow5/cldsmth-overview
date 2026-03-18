@@ -4,8 +4,12 @@ WORKDIR /app
 
 # Configure npm to pull from Cloudsmith upstream proxy
 ARG CLOUDSMITH_API_KEY
-RUN npm config set registry https://npm.cloudsmith.io/red-acme-inc/cldsmth-overview/
-RUN npm config set https://npm.cloudsmith.io/red-acme-inc/cldsmth-overview/:_authToken=${CLOUDSMITH_API_KEY}
+ARG CLOUDSMITH_WORKSPACE
+ARG CLOUDSMITH_REPOSITORY
+ARG CLOUDSMITH_SERVICE
+
+RUN npm config set registry https://npm.cloudsmith.io/$CLOUDSMITH_WORKSPACE/$CLOUDSMITH_REPOSITORY/
+RUN npm config set https://npm.cloudsmith.io/$CLOUDSMITH_WORKSPACE/$CLOUDSMITH_REPOSITORY/:_authToken=${CLOUDSMITH_API_KEY}
 
 COPY package.json .
 RUN npm install
