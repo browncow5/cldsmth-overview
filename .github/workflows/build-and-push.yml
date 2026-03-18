@@ -31,7 +31,7 @@ jobs:
 
       - name: Log in to Cloudsmith Docker Registry
         run: |
-          echo "${CLOUDSMITH_API_KEY}" | \
+          echo "${{ env.CLOUDSMITH_API_KEY }}" | \
             docker login docker.cloudsmith.io \
               -u "token" \
               --password-stdin
@@ -39,7 +39,7 @@ jobs:
       - name: Build Python API image
         run: |
           docker build \
-            --build-arg CLOUDSMITH_API_KEY=${CLOUDSMITH_API_KEY} \
+            --build-arg CLOUDSMITH_API_KEY=${{ env.CLOUDSMITH_API_KEY }} \
             -t ${{ env.DOCKER_REGISTRY }}/python-api:${{ github.sha }} \
             -t ${{ env.DOCKER_REGISTRY }}/python-api:latest \
             ./services/python-api
@@ -64,7 +64,7 @@ jobs:
 
       - name: Log in to Cloudsmith Docker Registry
         run: |
-          echo "${CLOUDSMITH_API_KEY}" | \
+          echo "${{ env.CLOUDSMITH_API_KEY }} | \
             docker login docker.cloudsmith.io \
               -u "token" \
               --password-stdin
@@ -72,7 +72,7 @@ jobs:
       - name: Build Node Web image
         run: |
           docker build \
-            --build-arg CLOUDSMITH_API_KEY=${CLOUDSMITH_API_KEY} \
+            --build-arg CLOUDSMITH_API_KEY=${{ env.CLOUDSMITH_API_KEY }} \
             -t ${{ env.DOCKER_REGISTRY }}/node-web:${{ github.sha }} \
             -t ${{ env.DOCKER_REGISTRY }}/node-web:latest \
             ./services/node-web
