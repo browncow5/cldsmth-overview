@@ -12,7 +12,7 @@ permissions:
 
 env:
   CLOUDSMITH_WORKSPACE: red-acme-inc
-  CLOUDSMITH_REPO: cldsmth-overview
+  CLOUDSMITH_REPOSITORY: cldsmth-overview
   CLOUDSMITH_SERVICE: gh-actions-3vjo # The service slug for the Cloudsmith service
   DOCKER_REGISTRY: docker.cloudsmith.io/red-acme-inc/cldsmth-overview
 
