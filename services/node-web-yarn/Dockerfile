@@ -12,7 +12,7 @@ RUN yarn config set npmRegistryServer https://npm.cloudsmith.io/${CLOUDSMITH_WOR
 RUN yarn config set 'npmRegistries["https://npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/"].npmAuthIdent' "token:${CLOUDSMITH_API_KEY}"
 RUN yarn config set 'npmRegistries["https://npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/"].npmAlwaysAuth' true
 
-RUN YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --verbose
+RUN YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --inline-builds
 
 COPY server.js .
 EXPOSE 3000
