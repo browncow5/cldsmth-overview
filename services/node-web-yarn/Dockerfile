@@ -19,8 +19,10 @@ npmRegistries:\n\
     npmAuthIdent: \"token:${CLOUDSMITH_API_KEY}\"\n\
     npmAlwaysAuth: true" > ~/.yarnrc.yml
 
-RUN YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --inline-builds --json
-
+RUN YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --inline-builds && \
+    echo "=== Package Sources ===" && \
+    grep "resolution:" yarn.lock
+    
 COPY server.js .
 EXPOSE 3000
 CMD ["yarn", "start"]
