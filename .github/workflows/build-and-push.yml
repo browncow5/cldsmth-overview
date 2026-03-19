@@ -102,3 +102,44 @@ jobs:
             CLOUDSMITH_REPOSITORY=${{ env.CLOUDSMITH_REPOSITORY }}
             CLOUDSMITH_API_KEY=${{ env.CLOUDSMITH_API_KEY }}
             BUILDKIT_PROGRESS=plain
+
+  build-node-web-yarn:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate with Cloudsmith via OIDC
+        uses: cloudsmith-io/cloudsmith-cli-action@v2.0.2
+        with:
+          oidc-namespace: ${{ env.CLOUDSMITH_WORKSPACE }}
+          oidc-service-slug: ${{ env.CLOUDSMITH_SERVICE }}
+          oidc-auth-only: 'true'
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker Login to Cloudsmith
+        uses: docker/login-action@v3
+        with:
+          registry: docker.cloudsmith.io
+          username: ${{ env.CLOUDSMITH_SERVICE }}
+          password: ${{ env.CLOUDSMITH_API_KEY }} 
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/node-web-yarn
+          file: ./services/node-web-yarn/Dockerfile
+          platforms: linux/arm64
+          provenance: false
+          push: true
+          tags: docker.cloudsmith.io/${{ env.CLOUDSMITH_WORKSPACE }}/${{ env.CLOUDSMITH_REPOSITORY }}/node-web-yarn:${{github.run_number}}
+          build-args: |
+            CLOUDSMITH_SERVICE=${{ env.CLOUDSMITH_SERVICE }}
+            CLOUDSMITH_WORKSPACE=${{ env.CLOUDSMITH_WORKSPACE }}
+            CLOUDSMITH_REPOSITORY=${{ env.CLOUDSMITH_REPOSITORY }}
+            CLOUDSMITH_API_KEY=${{ env.CLOUDSMITH_API_KEY }}
+            BUILDKIT_PROGRESS=plain
