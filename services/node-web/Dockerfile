@@ -16,7 +16,7 @@ RUN npm config set //npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPO
 RUN npm config set //npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/:_password $(printf '%s' "${CLOUDSMITH_API_KEY}" | base64 | tr -d '\n')
 
 COPY package.json .
-RUN npm install
+RUN npm install --verbose
 
 COPY server.js .
 
