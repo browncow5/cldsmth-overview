@@ -19,7 +19,7 @@ npmRegistries:\n\
     npmAuthIdent: \"token:${CLOUDSMITH_API_KEY}\"\n\
     npmAlwaysAuth: true" > ~/.yarnrc.yml
 
-RUN YARN_ENABLE_IMMUTABLE_INSTALLS=false YARN_HTTP_LOGGING=all yarn install --inline-builds
+RUN YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --inline-builds --json
 
 COPY server.js .
 EXPOSE 3000
