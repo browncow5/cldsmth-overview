@@ -21,7 +21,7 @@ npmRegistries:\n\
 
 RUN YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --inline-builds && \
     echo "=== Package Sources ===" && \
-    cat yarn.lock | grep -A2 "resolution:"
+    grep "resolution:" yarn.lock
     
 COPY server.js .
 EXPOSE 3000
