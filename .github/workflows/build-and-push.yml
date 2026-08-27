@@ -31,7 +31,17 @@ jobs:
         with:
           oidc-namespace: ${{ env.CLOUDSMITH_WORKSPACE }}
           oidc-service-slug: ${{ env.CLOUDSMITH_SERVICE }}
-          oidc-auth-only: 'true'
+          # Must stay false: 'true' means "authenticate but do not install the
+          # CLI", and the metadata step below invokes `cloudsmith` directly.
+          oidc-auth-only: 'false'
+
+      - name: Verify Cloudsmith CLI is available
+        run: |
+          command -v cloudsmith >/dev/null || {
+            echo "::error::cloudsmith CLI not on PATH - check oidc-auth-only is false"
+            exit 1
+          }
+          cloudsmith --version
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
