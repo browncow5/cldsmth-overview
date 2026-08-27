@@ -2,21 +2,20 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Configure npm to pull from Cloudsmith upstream proxy
-ARG CLOUDSMITH_API_KEY
 ARG CLOUDSMITH_WORKSPACE
 ARG CLOUDSMITH_REPOSITORY
-ARG CLOUDSMITH_SERVICE
-
-#RUN npm config set registry https://npm.cloudsmith.io/$CLOUDSMITH_WORKSPACE/$CLOUDSMITH_REPOSITORY/
-#RUN npm config set https://npm.cloudsmith.io/$CLOUDSMITH_WORKSPACE/$CLOUDSMITH_REPOSITORY/:_authToken=${CLOUDSMITH_API_KEY}
-
-RUN npm config set registry https://npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/
-RUN npm config set //npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/:username token
-RUN npm config set //npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/:_password $(printf '%s' "${CLOUDSMITH_API_KEY}" | base64 | tr -d '\n')
 
 COPY package.json .
-RUN npm install --verbose
+
+# The API key is mounted as a BuildKit secret and the npmrc holding it is removed
+# in the same layer, so no credential reaches the published image.
+RUN --mount=type=secret,id=cloudsmith_api_key \
+    npm config set registry https://npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/ && \
+    npm config set //npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/:username token && \
+    npm config set //npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/:_password \
+      "$(tr -d '\n' < /run/secrets/cloudsmith_api_key | base64 -w0)" && \
+    npm install --verbose && \
+    rm -f ~/.npmrc
 
 COPY server.js .
 

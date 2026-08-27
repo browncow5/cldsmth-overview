@@ -17,8 +17,12 @@ env:
   DOCKER_REGISTRY: docker.cloudsmith.io/red-acme-inc/cldsmth-overview
 
 jobs:
-  build-python-api:
+  build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [python-api, node-web, node-web-yarn]
     steps:
       - uses: actions/checkout@v4
 
@@ -28,10 +32,6 @@ jobs:
           oidc-namespace: ${{ env.CLOUDSMITH_WORKSPACE }}
           oidc-service-slug: ${{ env.CLOUDSMITH_SERVICE }}
           oidc-auth-only: 'true'
-
-      - name: Debug - check key exists
-        run: |
-          echo "Key length: ${#CLOUDSMITH_API_KEY}"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -40,106 +40,89 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Cloudsmith Docker Registry
+        uses: docker/login-action@v3
+        with:
+          registry: docker.cloudsmith.io
+          username: ${{ env.CLOUDSMITH_SERVICE }}
+          password: ${{ env.CLOUDSMITH_API_KEY }}
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/${{ matrix.service }}
+          file: ./services/${{ matrix.service }}/Dockerfile
+          platforms: linux/arm64
+          provenance: false
+          push: true
+          tags: ${{ env.DOCKER_REGISTRY }}/${{ matrix.service }}:${{ github.run_number }}
+          build-args: |
+            CLOUDSMITH_SERVICE=${{ env.CLOUDSMITH_SERVICE }}
+            CLOUDSMITH_WORKSPACE=${{ env.CLOUDSMITH_WORKSPACE }}
+            CLOUDSMITH_REPOSITORY=${{ env.CLOUDSMITH_REPOSITORY }}
+            BUILDKIT_PROGRESS=plain
+          # Passed as a BuildKit secret, not a build-arg: build-args are recorded
+          # in image metadata and readable via `docker history`.
+          secrets: |
+            cloudsmith_api_key=${{ env.CLOUDSMITH_API_KEY }}
+
+      - name: Attach build metadata to package
+        env:
+          SERVICE: ${{ matrix.service }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE_TAG: ${{ github.run_number }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          SOURCE_REF: ${{ github.ref_name }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          SOURCE_REPO: ${{ github.repository }}
+          TRIGGERED_BY: ${{ github.actor }}
         run: |
-          echo "${{ env.CLOUDSMITH_API_KEY }}" | \
-            docker login docker.cloudsmith.io \
-              -u "token" \
-              --password-stdin
+          set -euo pipefail
 
-      - name: Build and push image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./services/python-api
-          file: ./services/python-api/Dockerfile
-          platforms: linux/arm64
-          provenance: false
-          push: true
-          tags: docker.cloudsmith.io/${{ env.CLOUDSMITH_WORKSPACE }}/${{ env.CLOUDSMITH_REPOSITORY }}/python-api:${{github.run_number}}
-          build-args: |
-            CLOUDSMITH_SERVICE=${{ env.CLOUDSMITH_SERVICE }}
-            CLOUDSMITH_WORKSPACE=${{ env.CLOUDSMITH_WORKSPACE }}
-            CLOUDSMITH_REPOSITORY=${{ env.CLOUDSMITH_REPOSITORY }}
-            CLOUDSMITH_API_KEY=${{ env.CLOUDSMITH_API_KEY }}
-            BUILDKIT_PROGRESS=plain
+          # A native `docker push` does not hand back a package slug the way
+          # `cloudsmith push` does, and Cloudsmith processes uploads
+          # asynchronously (~1 min typical), so look the package up by its
+          # manifest digest and retry until it has synced.
+          SLUG=""
+          for attempt in $(seq 1 30); do
+            SLUG=$(cloudsmith list packages \
+              "${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}" \
+              -q "docker_image_digest:${DIGEST}" \
+              -F json | jq -r '.data[0].slug_perm // empty')
+            if [ -n "$SLUG" ]; then
+              break
+            fi
+            echo "Waiting for ${SERVICE}@${DIGEST} to sync (attempt ${attempt}/30)..."
+            sleep 10
+          done
 
-  build-node-web:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+          if [ -z "$SLUG" ]; then
+            echo "::error::No package found for digest ${DIGEST} after 5 minutes."
+            exit 1
+          fi
 
-      - name: Authenticate with Cloudsmith via OIDC
-        uses: cloudsmith-io/cloudsmith-cli-action@v2.0.2
-        with:
-          oidc-namespace: ${{ env.CLOUDSMITH_WORKSPACE }}
-          oidc-service-slug: ${{ env.CLOUDSMITH_SERVICE }}
-          oidc-auth-only: 'true'
+          echo "Resolved ${SERVICE}@${DIGEST} to package ${SLUG}"
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+          # jq --arg keeps untrusted context values out of the shell and
+          # guarantees well-formed JSON.
+          CONTENT=$(jq -nc \
+            --arg git_sha        "${SOURCE_SHA}" \
+            --arg git_ref        "${SOURCE_REF}" \
+            --arg source_repo    "${SOURCE_REPO}" \
+            --arg service        "${SERVICE}" \
+            --arg image_tag      "${IMAGE_TAG}" \
+            --arg image_digest   "${DIGEST}" \
+            --arg run_id         "${RUN_ID}" \
+            --arg run_attempt    "${RUN_ATTEMPT}" \
+            --arg triggered_by   "${TRIGGERED_BY}" \
+            '$ARGS.named')
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+          cloudsmith metadata add \
+            "${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/${SLUG}" \
+            --content-type application/json \
+            --source-identity "ci:github-actions" \
+            --content "${CONTENT}"
 
-      - name: Docker Login to Cloudsmith
-        uses: docker/login-action@v3
-        with:
-          registry: docker.cloudsmith.io
-          username: ${{ env.CLOUDSMITH_SERVICE }}
-          password: ${{ env.CLOUDSMITH_API_KEY }} 
-
-      - name: Build and push image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./services/node-web
-          file: ./services/node-web/Dockerfile
-          platforms: linux/arm64
-          provenance: false
-          push: true
-          tags: docker.cloudsmith.io/${{ env.CLOUDSMITH_WORKSPACE }}/${{ env.CLOUDSMITH_REPOSITORY }}/node-web:${{github.run_number}}
-          build-args: |
-            CLOUDSMITH_SERVICE=${{ env.CLOUDSMITH_SERVICE }}
-            CLOUDSMITH_WORKSPACE=${{ env.CLOUDSMITH_WORKSPACE }}
-            CLOUDSMITH_REPOSITORY=${{ env.CLOUDSMITH_REPOSITORY }}
-            CLOUDSMITH_API_KEY=${{ env.CLOUDSMITH_API_KEY }}
-            BUILDKIT_PROGRESS=plain
-
-  build-node-web-yarn:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Authenticate with Cloudsmith via OIDC
-        uses: cloudsmith-io/cloudsmith-cli-action@v2.0.2
-        with:
-          oidc-namespace: ${{ env.CLOUDSMITH_WORKSPACE }}
-          oidc-service-slug: ${{ env.CLOUDSMITH_SERVICE }}
-          oidc-auth-only: 'true'
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Docker Login to Cloudsmith
-        uses: docker/login-action@v3
-        with:
-          registry: docker.cloudsmith.io
-          username: ${{ env.CLOUDSMITH_SERVICE }}
-          password: ${{ env.CLOUDSMITH_API_KEY }} 
-
-      - name: Build and push image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./services/node-web-yarn
-          file: ./services/node-web-yarn/Dockerfile
-          platforms: linux/arm64
-          provenance: false
-          push: true
-          tags: docker.cloudsmith.io/${{ env.CLOUDSMITH_WORKSPACE }}/${{ env.CLOUDSMITH_REPOSITORY }}/node-web-yarn:${{github.run_number}}
-          build-args: |
-            CLOUDSMITH_SERVICE=${{ env.CLOUDSMITH_SERVICE }}
-            CLOUDSMITH_WORKSPACE=${{ env.CLOUDSMITH_WORKSPACE }}
-            CLOUDSMITH_REPOSITORY=${{ env.CLOUDSMITH_REPOSITORY }}
-            CLOUDSMITH_API_KEY=${{ env.CLOUDSMITH_API_KEY }}
-            BUILDKIT_PROGRESS=plain
+          echo "Attached metadata to ${SERVICE} (${SLUG}):"
+          echo "${CONTENT}" | jq .
