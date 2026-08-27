@@ -1,28 +1,29 @@
 FROM node:20-slim
 WORKDIR /app
 
-ARG CLOUDSMITH_API_KEY
 ARG CLOUDSMITH_WORKSPACE
 ARG CLOUDSMITH_REPOSITORY
 
 RUN corepack enable && corepack prepare yarn@stable --activate
 
 COPY package.json .
-#RUN yarn config set npmRegistryServer https://npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/
-#RUN yarn config set 'npmRegistries["https://npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/"].npmAuthIdent' "token:${CLOUDSMITH_API_KEY}"
-#RUN yarn config set 'npmRegistries["https://npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/"].npmAlwaysAuth' true
 
-RUN echo "\
-npmRegistryServer: \"https://npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/\"\n\
-npmRegistries:\n\
-  \"https://npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/\":\n\
-    npmAuthIdent: \"token:${CLOUDSMITH_API_KEY}\"\n\
-    npmAlwaysAuth: true" > ~/.yarnrc.yml
-
-RUN YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --inline-builds && \
+# The API key is mounted as a BuildKit secret and the yarnrc holding it is removed
+# in the same layer, so no credential reaches the published image.
+RUN --mount=type=secret,id=cloudsmith_api_key \
+    REGISTRY="https://npm.cloudsmith.io/${CLOUDSMITH_WORKSPACE}/${CLOUDSMITH_REPOSITORY}/" && \
+    TOKEN="$(tr -d '\n' < /run/secrets/cloudsmith_api_key)" && \
+    { echo "npmRegistryServer: \"$REGISTRY\""; \
+      echo "npmRegistries:"; \
+      echo "  \"$REGISTRY\":"; \
+      echo "    npmAuthIdent: \"token:$TOKEN\""; \
+      echo "    npmAlwaysAuth: true"; \
+    } > ~/.yarnrc.yml && \
+    YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --inline-builds && \
+    rm -f ~/.yarnrc.yml && \
     echo "=== Package Sources ===" && \
     grep "resolution:" yarn.lock
-    
+
 COPY server.js .
 EXPOSE 3000
 CMD ["yarn", "start"]

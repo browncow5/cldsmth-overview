@@ -2,14 +2,18 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-ARG CLOUDSMITH_API_KEY
 ARG CLOUDSMITH_WORKSPACE
 ARG CLOUDSMITH_REPOSITORY
 ARG CLOUDSMITH_SERVICE
 
 COPY requirements.txt .
-RUN pip install --index-url https://$CLOUDSMITH_SERVICE:$CLOUDSMITH_API_KEY@dl.cloudsmith.io/basic/$CLOUDSMITH_WORKSPACE/$CLOUDSMITH_REPOSITORY/python/simple/ \
-    -r requirements.txt
+
+# The API key is mounted as a BuildKit secret, so it is available only to this
+# RUN and never lands in a layer or in `docker history`.
+RUN --mount=type=secret,id=cloudsmith_api_key \
+    pip install \
+      --index-url "https://$CLOUDSMITH_SERVICE:$(cat /run/secrets/cloudsmith_api_key)@dl.cloudsmith.io/basic/$CLOUDSMITH_WORKSPACE/$CLOUDSMITH_REPOSITORY/python/simple/" \
+      -r requirements.txt
 
 COPY app.py .
 
